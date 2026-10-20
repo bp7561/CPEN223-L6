@@ -1,6 +1,6 @@
-﻿// Lab 6
-// Student name:
-// Student number:
+// Lab 6
+// Student name: Brian Pham
+// Student number: 24626509
 
 using System;
 using System.Collections.Generic;
@@ -22,9 +22,50 @@ Dictionary<string, Dictionary<string, double>> scaffold = new()
 //(and ShortestPath, if you attempt the optional challenge).
 //Compare finite distances using a small tolerance, and check unreachable
 //vertices with double.IsPositiveInfinity.
-//TODO
-//
-//
+//TO DO
+Console.WriteLine("Testing ShortestDistancesFrom");
+Dictionary<string, double> distances = GraphLibrary.ShortestDistancesFrom(scaffold, "A");
+Console.WriteLine();
+
+Console.WriteLine("Distances from A");
+Console.WriteLine("A " + distances["A"]);
+Console.WriteLine("B " + distances["B"]);
+Console.WriteLine("C " + distances["C"]);
+Console.WriteLine("D " + distances["D"]);
+Console.WriteLine("E " + distances["E"]);
+Console.WriteLine("F " + distances["F"]);
+Console.WriteLine();
+
+Console.WriteLine("Test Cases:");
+Console.WriteLine("A matches 0.0: " + (distances["A"] == 0.0));
+Console.WriteLine("B matches 2.0: " + (distances["B"] == 2.0));
+Console.WriteLine("C matches 3.0: " + (distances["C"] == 3.0));
+Console.WriteLine("D matches 4.5: " + (distances["D"] == 4.5));
+Console.WriteLine("E matches 7.5: " + (distances["E"] == 7.5));
+Console.WriteLine("F is Infinity: " + double.IsPositiveInfinity(distances["F"]));
+Console.WriteLine();
+
+Console.WriteLine("Testing ShortestPath");
+List<string> path = GraphLibrary.ShortestPath(scaffold, "A", "E");
+Console.WriteLine();
+
+Console.WriteLine("Test Case: A to E");
+Console.WriteLine("Expected: A -> B -> C -> D -> E");
+
+Console.WriteLine("Step 0: " + path[0]);
+Console.WriteLine("Step 1: " + path[1]);
+Console.WriteLine("Step 2: " + path[2]);
+Console.WriteLine("Step 3: " + path[3]);
+Console.WriteLine("Step 4: " + path[4]);
+Console.WriteLine();
+
+Console.WriteLine("Steps from A:");
+Console.WriteLine("Step 0 is A: " + (path[0] == "A"));
+Console.WriteLine("Step 1 is B: " + (path[1] == "B"));
+Console.WriteLine("Step 2 is C: " + (path[2] == "C"));
+Console.WriteLine("Step 3 is D: " + (path[3] == "D"));
+Console.WriteLine("Step 4 is E: " + (path[4] == "E"));
+Console.WriteLine();
 //end Testing code
 
 //Do not change the program skeleton: keep the class name, method names,
@@ -71,11 +112,19 @@ public static class GraphLibrary
         IReadOnlyDictionary<string, Dictionary<string, double>> graph,
         string source)
     {
-        //TODO
-        throw new NotImplementedException();
+		// validation
+        if (graph == null || !graph.ContainsKey(source))
+        {
+            throw new ArgumentException("ERROR: null graph or graph does not contain source key");
+        }
+
+        // call helper function to compute Dijkstra and return dictionary of only distances
+        var (distances, _) = Dijkstra(graph, source);
+		//return distances
+        return distances;
     }
 
-
+	
     // ---------------------------------------------------------------------
     // Optional challenge (Section 7). Leave the NotImplementedException in
     // place if you do not attempt it.
@@ -112,7 +161,129 @@ public static class GraphLibrary
         string source,
         string target)
     {
-        //TODO (optional)
-        throw new NotImplementedException();
+		// validation
+        if (graph == null || !graph.ContainsKey(source) || !graph.ContainsKey(target))
+        {
+            throw new ArgumentException("ERROR: graph is null or graph does not contain source or target key");
+        }
+
+        // if the source is the target, return the source list
+        if (source == target)
+        {
+            return new List<string> { source };
+        }
+
+        // call function helper to compute Dijkstra
+        var (distances, predecessors) = Dijkstra(graph, source);
+
+        // if there is no path connection (infinity), return the empty list
+        if (double.IsPositiveInfinity(distances[target]))
+        {
+            return new List<string>();
+        }
+
+        // new Stack to rebuild path with correct forward order
+        Stack<string> path = new Stack<string>();
+		// current string gets target
+        string curr = target;
+
+		// if current string is not equal to null, process
+        while (curr != null)
+        {
+			// push current string to Stack
+            path.Push(curr);
+			// update current pointer to point to its predecessor
+            curr = predecessors[curr];
+        }
+
+        // new List to store ordered strings
+        List<string> ordered = new List<string>();
+		// add strings to List until there are none left
+        while (path.Count > 0)
+        {
+            ordered.Add(path.Pop());
+        }
+
+		// return the ordered List
+        return ordered;
+    }
+
+    /// helper function to compute Dijkstra algorithm
+    private static (Dictionary<string, double> Distances, Dictionary<string, string?> Predecessors) Dijkstra(
+        IReadOnlyDictionary<string, Dictionary<string, double>> graph,
+        string source)
+    {
+		// new Dictionary to hold minimum distance values from source to any node
+        Dictionary<string, double> distances = new Dictionary<string, double>();
+		// new Dictionary to hold predecessor node names for currently shortest path, accounts for undiscovered paths as well
+        Dictionary<string, string?> predecessors = new Dictionary<string, string?>();
+		// new HashSet to hold processed nodes with the minimum distances
+        HashSet<string> processed = new HashSet<string>();
+		// new Priority Queue for a work queue, will hold node names and the current distance, also puts the shortest distance on top of the queue
+        PriorityQueue<string, double> work = new PriorityQueue<string, double>();
+
+        // iterate through each node in graph
+        foreach (string node in graph.Keys)
+        {
+			// initialize shortest distance to infinity
+            distances[node] = double.PositiveInfinity;
+			// clear predecessor node pointers
+            predecessors[node] = null;
+        }
+		
+		// the distance from the source to itself is 0.0
+        distances[source] = 0.0;
+
+        // start work queue at source with priority 0.0 
+        work.Enqueue(source, 0.0);
+
+        // process nodes from worklist until there are none left
+        while (work.Count > 0)
+        {
+			// process current node at the top of the queue
+            string curr = work.Dequeue();
+
+            // if current node has already been processed, skip loop
+            if (processed.Contains(curr))
+            {
+                continue;
+            }
+
+            // add current node to HashSet of processed nodes
+            processed.Add(curr);
+			// uses Dictionary for neighbouring nodes of current node
+            Dictionary<string, double> neighbours = graph[curr];
+
+			// iterate through all edges in neighbouring nodes
+            foreach (var edge in neighbours)
+            {
+				// neighbour gets Key and edge cost gets distance value
+                string neighbour = edge.Key;
+                double edgeCost = edge.Value;
+
+                // if neighbour has already been processed, skip loop
+                if (processed.Contains(neighbour))
+                {
+                    continue;
+                }
+
+				// establish a candidate with the shortest distance from current node and its edge cost
+                double candidate = distances[curr] + edgeCost;
+
+                // if candidate has shorter distance current shortest neighbour distance, update values
+                if (candidate < distances[neighbour])
+                {
+					// new shortest distance
+                    distances[neighbour] = candidate;
+					// current node is the predecessor of the neighbour
+                    predecessors[neighbour] = curr;
+					// enqueue neighbour to work queue with candidate as its priority so it can be evaluated later 
+                    work.Enqueue(neighbour, candidate);
+                }
+            }
+        }
+
+		// return dictionaries of distances and predecessors
+        return (distances, predecessors);
     }
 }
